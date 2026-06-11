@@ -13,6 +13,7 @@ let seededProductId: string;
 let seededPaymentMethodId: string;
 let seededCustomerId: string;
 let seededAddressId: string;
+let seededDeliverymanId: string;
 
 beforeAll(async () => {
   await applyD1Migrations(env.DB, JSON.parse(env.TEST_MIGRATIONS));
@@ -36,6 +37,13 @@ beforeAll(async () => {
     "INSERT INTO addresses (id, customer_name, phone_number, full_address) VALUES (lower(hex(randomblob(10))), 'John', '01700000000', '123 Main St') RETURNING id",
   ).first<{ id: string }>();
   seededAddressId = addr!.id;
+
+  const dm = await env.DB.prepare(
+    "INSERT INTO deliverymen (id, user_id) VALUES (lower(hex(randomblob(10))), ?) RETURNING id",
+  )
+    .bind(seededCustomerId)
+    .first<{ id: string }>();
+  seededDeliverymanId = dm!.id;
 });
 
 afterEach(async () => {
@@ -206,9 +214,8 @@ describe("OrdersService.myOrders", () => {
 describe("OrdersService.assignDeliveryman", () => {
   it("assigns a deliveryman to an order", async () => {
     const order = await service.createOrder(orderPayload(), makeContext());
-    const fakeDmId = "fake-deliveryman-id";
 
-    const updated = await service.assignDeliveryman(order.id, fakeDmId, makeContext());
-    expect(updated.deliverymanId).toBe(fakeDmId);
+    const updated = await service.assignDeliveryman(order.id, seededDeliverymanId, makeContext());
+    expect(updated.deliverymanId).toBe(seededDeliverymanId);
   });
 });

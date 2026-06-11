@@ -59,9 +59,20 @@ export class LocationsService {
     return q.orderBy(desc(zones.createdAt));
   }
 
-  async createZone(payload: typeof zones.$inferInsert, c: Context) {
+  async createZone(
+    payload: Omit<typeof zones.$inferInsert, "name"> & { name?: string; city?: string },
+    c: Context,
+  ) {
     const db = getDb(c);
-    const [zone] = await db.insert(zones).values(payload).returning();
+    const { city, ...rest } = payload;
+    const [zone] = await db
+      .insert(zones)
+      .values({
+        ...rest,
+        name: rest.name ?? this.slugify(String(rest.title ?? "")),
+        cityId: rest.cityId ?? city,
+      })
+      .returning();
     return zone!;
   }
 
@@ -187,5 +198,14 @@ export class LocationsService {
     const db = getDb(c);
     await db.delete(addresses).where(eq(addresses.id, id));
     return { message: "Address deleted" };
+  }
+
+  private slugify(text: string): string {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 }

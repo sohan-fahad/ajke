@@ -16,50 +16,49 @@ export class AuthController {
   @Post("/login")
   @ZodValidate(LoginDTO)
   async login(@Body() body: LoginDTOType, c: Context) {
-    const data = await this.authService.loginUser(body, c);
+    const data = await this.authService.loginUser(c, body);
     return ResponseUtil.success(c, data, "Login success");
   }
 
   @Post("/register")
   @ZodValidate(RegisterDTO)
   async register(@Body() body: RegisterDTOType, c: Context) {
-    console.log("body", body);
-    const data = await this.authService.registerUser(body, c);
+    const data = await this.authService.registerUser(c, body);
     return ResponseUtil.success(c, data, "User registered successfully");
   }
 
   @Post("/refresh-token")
   @ZodValidate(RefreshTokenDTO)
   async refreshToken(@Body() body: RefreshTokenDTOType, c: Context) {
-    const data = await this.authService.refreshToken(body, c);
+    const data = await this.authService.refreshToken(c, body);
     return ResponseUtil.success(c, data, "Refresh token success");
   }
 
   @Post("/send-otp")
   @ZodValidate(SendOtpDTO)
   async sendOtp(@Body() body: SendOtpDTOType, c: Context) {
-    const data = await this.authService.sendOtp(body, c);
+    const data = await this.authService.sendOtp(c, body);
     return ResponseUtil.success(c, data, "OTP sent successfully");
   }
 
   @Post("/verify-otp")
   @ZodValidate(VerifyOtpDTO)
   async verifyOtp(@Body() body: VerifyOtpDTOType, c: Context) {
-    const data = await this.authService.verifyOtp(body, c);
+    const data = await this.authService.verifyOtp(c, body);
     return ResponseUtil.success(c, data, "OTP verified successfully");
   }
 
   @Post("/reset-password")
   @ZodValidate(ResetPasswordDTO)
   async resetPassword(@Body() body: ResetPasswordDTOType, c: Context) {
-    const data = await this.authService.resetPassword(body, c);
+    const data = await this.authService.resetPassword(c, body);
     return ResponseUtil.success(c, data, "OTP sent to email");
   }
 
   @Post("/reset-password/verify")
   @ZodValidate(VerifyResetPasswordDTO)
   async verifyResetPassword(@Body() body: VerifyResetPasswordDTOType, c: Context) {
-    const data = await this.authService.verifyResetPassword(body, c);
+    const data = await this.authService.verifyResetPassword(c, body);
     return ResponseUtil.success(c, data, "Password reset successfully");
   }
 
@@ -68,7 +67,7 @@ export class AuthController {
   @ZodValidate(ChangePasswordDTO)
   async changePassword(@Body() body: ChangePasswordDTOType, c: Context) {
     const authUser = c.get("authUser" as never);
-    const data = await this.authService.changePassword(body, authUser.id, c);
+    const data = await this.authService.changePassword(c, body, authUser.id);
     return ResponseUtil.success(c, data);
   }
 }
@@ -80,14 +79,14 @@ export class AuthDMController {
   @Post("/login")
   @ZodValidate(LoginDMDTO)
   async loginDM(@Body() body: LoginDMDTOType, c: Context) {
-    const data = await this.authService.loginDM(body, c);
+    const data = await this.authService.loginDM(c, body);
     return ResponseUtil.success(c, data, "Login success");
   }
 
   @Post("/refresh-token")
   @ZodValidate(RefreshTokenDTO)
   async refreshToken(@Body() body: RefreshTokenDTOType, c: Context) {
-    const data = await this.authService.refreshToken(body, c);
+    const data = await this.authService.refreshToken(c, body);
     return ResponseUtil.success(c, data, "Refresh token success");
   }
 }

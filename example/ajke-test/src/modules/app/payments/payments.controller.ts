@@ -43,8 +43,9 @@ export class PaymentMethodPublicController {
   constructor(@Inject(PaymentsService) private readonly svc: PaymentsService) { }
 
   @Get()
-  async findAll(@Query() q: Record<string, string>, c: Context) {
-    return ResponseUtil.success(c, await this.svc.findAllMethods(q, c));
+  @QueryValidate(FilterPaymentMethodDTO)
+  async findAll(@Query() q: FilterPaymentMethodDTOType, c: Context) {
+    return ResponseUtil.success(c, await this.svc.findAllMethods(c, q));
   }
 }
 

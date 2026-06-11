@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import { eq, and, desc } from "drizzle-orm";
 import { getDb } from "@app/database/connection";
 import { cms } from "./cms.entity";
+import { ENUM_CMS_TYPE } from "../../../shared";
 
 type DB = ReturnType<typeof getDb>;
 type BatchItem = Parameters<DB["batch"]>[0][0];
@@ -27,9 +28,12 @@ export class CmsService {
     return item;
   }
 
-  async create(payload: typeof cms.$inferInsert, c: Context) {
+  async create(payload: Omit<typeof cms.$inferInsert, "type"> & { type?: string }, c: Context) {
     const db = getDb(c);
-    const [item] = await db.insert(cms).values(payload).returning();
+    const [item] = await db
+      .insert(cms)
+      .values({ ...payload, type: payload.type ?? ENUM_CMS_TYPE.BANNER })
+      .returning();
     return item;
   }
 

@@ -17,6 +17,7 @@ export const transactions = sqliteTable("transactions", {
   userId: text("user_id").references(() => users.id),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   organizationId: text("organization_id").references(() => organizations.id),
+  workspaceId: text("workspace_id"),
   createdBy: text("created_by"),
   updatedBy: text("updated_by"),
   deletedBy: text("deleted_by"),

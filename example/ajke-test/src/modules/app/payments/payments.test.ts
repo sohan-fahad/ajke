@@ -71,7 +71,7 @@ describe("PaymentsService.createMethods (batch)", () => {
 
 describe("PaymentsService.findAllMethods", () => {
   it("returns empty when no methods exist", async () => {
-    const result = await service.findAllMethods({}, makeContext());
+    const result = await service.findAllMethods(makeContext(), {});
     expect(result).toHaveLength(0);
   });
 
@@ -80,7 +80,7 @@ describe("PaymentsService.findAllMethods", () => {
       [{ title: "Cash" }, { title: "Card" }],
       makeContext(),
     );
-    const result = await service.findAllMethods({}, makeContext());
+    const result = await service.findAllMethods(makeContext(), {});
     expect(result).toHaveLength(2);
   });
 });
