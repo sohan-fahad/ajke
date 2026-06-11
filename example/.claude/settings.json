@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check *)",
+      "Read(//Users/sohanfahad/Documents/workspaces/cf-worker-workpace/cf-hono-starter/src/**)",
+      "Bash(cat /Users/sohanfahad/Documents/workspaces/cf-worker-workpace/cf-hono-starter/dist/lib/injector/module-compiler.js 2>/dev/null | head -60 || cat /Users/sohanfahad/Documents/workspaces/cf-worker-workpace/cf-hono-starter/dist/lib/injector/injector.js 2>/dev/null | head -60)",
+      "Read(//Users/sohanfahad/Documents/workspaces/cf-worker-workpace/cf-hono-starter/dist/lib/injector/**)"
+    ]
+  }
+}

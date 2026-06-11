@@ -1,0 +1,34 @@
+{
+  "name": "@ajke/cli",
+  "version": "0.1.15",
+  "type": "module",
+  "description": "CLI for the Ajke framework — scaffold Cloudflare Workers projects",
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "cli",
+    "scaffold",
+    "typescript"
+  ],
+  "license": "MIT",
+  "bin": {
+    "ajke": "./dist/bin/ajke.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "prebuild": "rimraf dist",
+    "check": "tsc --noEmit",
+    "ajke": "tsx bin/ajke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "rimraf": "^6.1.3",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
