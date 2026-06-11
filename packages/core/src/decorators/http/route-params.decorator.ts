@@ -1,5 +1,5 @@
-export const ROUTE_PARAMS_METADATA = "wilt:route-params";
-export const TOTAL_PARAMS_METADATA = "wilt:total-params";
+export const ROUTE_PARAMS_METADATA = "ajke:route-params";
+export const TOTAL_PARAMS_METADATA = "ajke:total-params";
 
 export type RouteParamType = "body" | "param" | "query" | "headers" | "ip" | "req";
 

@@ -35,6 +35,20 @@ export class MethodNotAllowedException extends HttpException {
 	}
 }
 
+export class NotAcceptableException extends HttpException {
+	constructor(message: string | Record<string, any> = "Not Acceptable") {
+		super(message, 406);
+		this.name = "NotAcceptableException";
+	}
+}
+
+export class RequestTimeoutException extends HttpException {
+	constructor(message: string | Record<string, any> = "Request Timeout") {
+		super(message, 408);
+		this.name = "RequestTimeoutException";
+	}
+}
+
 export class ConflictException extends HttpException {
 	constructor(message: string | Record<string, any> = "Conflict") {
 		super(message, 409);
@@ -46,6 +60,27 @@ export class GoneException extends HttpException {
 	constructor(message: string | Record<string, any> = "Gone") {
 		super(message, 410);
 		this.name = "GoneException";
+	}
+}
+
+export class PreconditionFailedException extends HttpException {
+	constructor(message: string | Record<string, any> = "Precondition Failed") {
+		super(message, 412);
+		this.name = "PreconditionFailedException";
+	}
+}
+
+export class PayloadTooLargeException extends HttpException {
+	constructor(message: string | Record<string, any> = "Payload Too Large") {
+		super(message, 413);
+		this.name = "PayloadTooLargeException";
+	}
+}
+
+export class UnsupportedMediaTypeException extends HttpException {
+	constructor(message: string | Record<string, any> = "Unsupported Media Type") {
+		super(message, 415);
+		this.name = "UnsupportedMediaTypeException";
 	}
 }
 
@@ -77,9 +112,23 @@ export class NotImplementedException extends HttpException {
 	}
 }
 
+export class BadGatewayException extends HttpException {
+	constructor(message: string | Record<string, any> = "Bad Gateway") {
+		super(message, 502);
+		this.name = "BadGatewayException";
+	}
+}
+
 export class ServiceUnavailableException extends HttpException {
 	constructor(message: string | Record<string, any> = "Service Unavailable") {
 		super(message, 503);
 		this.name = "ServiceUnavailableException";
+	}
+}
+
+export class GatewayTimeoutException extends HttpException {
+	constructor(message: string | Record<string, any> = "Gateway Timeout") {
+		super(message, 504);
+		this.name = "GatewayTimeoutException";
 	}
 }

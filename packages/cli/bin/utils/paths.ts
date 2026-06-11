@@ -26,7 +26,7 @@ export const APP_MODULE_FILE = join(SRC_DIR, "app.module.ts");
 export const SCHEMA_FILE = join(SRC_DIR, "database", "schema.ts");
 
 /** The @ajke/core import used in generated files */
-export function wiltImportPath(): string {
+export function coreImportPath(): string {
   return "@ajke/core";
 }
 

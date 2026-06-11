@@ -50,7 +50,7 @@ export class _ResponseUtil {
 		total: number,
 		message?: string,
 	): Response {
-		const totalPages = Math.ceil(total / limit) ?? 1;
+		const totalPages = limit > 0 ? Math.ceil(total / limit) : 0;
 
 		const response: PaginatedResponse<T> = {
 			success: true,

@@ -1,41 +1,46 @@
-import { injectable, inject as tsyringeInject } from "tsyringe";
-import { isForwardRef } from "../../utils/forward-ref.util";
+import type {
+	ForwardReference,
+	InjectionToken,
+} from "../../interfaces/modules/module.interface";
 
-export const INJECT_CUSTOM_TOKENS_KEY = "wilt:inject:custom:tokens";
+export const INJECTABLE_METADATA = "ajke:injectable";
+export const INJECT_CUSTOM_TOKENS_KEY = "ajke:inject:custom:tokens";
 
-export function Injectable() {
+export function Injectable(): ClassDecorator {
 	return (target: any) => {
-		injectable()(target);
+		Reflect.defineMetadata(INJECTABLE_METADATA, true, target);
+		return target;
 	};
 }
 
-export function Inject(token?: any) {
+/**
+ * Marks a constructor parameter for injection.
+ *
+ * Accepts a class, a string/symbol token, or `forwardRef(() => TheClass)`
+ * for circular dependencies. An explicit token is required when the project
+ * is bundled with esbuild/Vite, which never emit `design:paramtypes`.
+ */
+export function Inject(token?: InjectionToken | ForwardReference) {
 	return (
 		target: any,
 		propertyKey: string | symbol | undefined,
 		parameterIndex: number
 	) => {
-		if (isForwardRef(token)) {
-			const existing: Record<number, any> =
-				Reflect.getMetadata(INJECT_CUSTOM_TOKENS_KEY, target) || {};
-			existing[parameterIndex] = token;
-			Reflect.defineMetadata(INJECT_CUSTOM_TOKENS_KEY, existing, target);
-			return;
-		}
+		if (propertyKey !== undefined) return;
 
-		if (!token) {
+		let actualToken = token;
+		if (actualToken === undefined || actualToken === null) {
 			const paramTypes = Reflect.getMetadata("design:paramtypes", target) || [];
-			const paramType = paramTypes[parameterIndex];
-			if (paramType) {
-				return tsyringeInject(paramType)(target, propertyKey, parameterIndex);
-			}
-			return;
+			actualToken = paramTypes[parameterIndex];
+			if (actualToken === undefined) return;
 		}
 
-		const existing: Record<number, any> =
-			Reflect.getMetadata(INJECT_CUSTOM_TOKENS_KEY, target) || {};
-		existing[parameterIndex] = token;
+		const existing: Record<number, InjectionToken | ForwardReference> = {
+			...(Reflect.getOwnMetadata(INJECT_CUSTOM_TOKENS_KEY, target) ??
+				Reflect.getMetadata(INJECT_CUSTOM_TOKENS_KEY, target) ??
+				{}),
+		};
+		existing[parameterIndex] = actualToken!;
 		Reflect.defineMetadata(INJECT_CUSTOM_TOKENS_KEY, existing, target);
-		return tsyringeInject(token)(target, propertyKey, parameterIndex);
 	};
 }

@@ -11,7 +11,8 @@
     "publish:cli": "pnpm --filter @ajke/cli publish --no-git-checks",
     "check": "pnpm -r check",
     "lint": "eslint packages --ext .ts",
-    "format": "prettier --write \"packages/**/*.ts\""
+    "format": "prettier --write \"packages/**/*.ts\"",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

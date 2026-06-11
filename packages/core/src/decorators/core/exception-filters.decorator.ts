@@ -1,5 +1,5 @@
-export const FILTERS_METADATA = "wilt:filters";
-export const CATCH_METADATA = "wilt:catch";
+export const FILTERS_METADATA = "ajke:filters";
+export const CATCH_METADATA = "ajke:catch";
 
 export function Catch(...exceptions: (new (...args: any[]) => any)[]): ClassDecorator {
 	return (target: any) => {

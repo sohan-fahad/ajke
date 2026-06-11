@@ -1,4 +1,4 @@
-export const GLOBAL_MODULE_METADATA = "wilt:global";
+export const GLOBAL_MODULE_METADATA = "ajke:global";
 
 export function Global(): ClassDecorator {
 	return (target: any) => {

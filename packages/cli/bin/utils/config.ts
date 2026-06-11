@@ -1,26 +1,28 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-export interface WiltConfig {
+export type GeneratableFile = "module" | "controller" | "service" | "dto" | "entity" | "test";
+
+export interface AjkeConfig {
   modulesDir?: string;
   srcDir?: string;
   generate?: {
-    files?: Array<"module" | "controller" | "service" | "dto" | "entity">;
+    files?: GeneratableFile[];
   };
 }
 
-export interface ResolvedWiltConfig {
+export interface ResolvedAjkeConfig {
   modulesDir: string;
   srcDir: string;
   generate: {
-    files: Array<"module" | "controller" | "service" | "dto" | "entity">;
+    files: GeneratableFile[];
   };
 }
 
-export async function loadConfig(cwd: string = process.cwd()): Promise<ResolvedWiltConfig> {
-  let userConfig: WiltConfig = {};
+export async function loadConfig(cwd: string = process.cwd()): Promise<ResolvedAjkeConfig> {
+  let userConfig: AjkeConfig = {};
 
-  for (const name of ["ajke.config.ts", "ajke.config.js", "ajke.config.mjs", "wilt.config.ts", "wilt.config.js", "wilt.config.mjs"]) {
+  for (const name of ["ajke.config.ts", "ajke.config.js", "ajke.config.mjs"]) {
     const configPath = join(cwd, name);
     if (existsSync(configPath)) {
       try {
@@ -37,7 +39,7 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<ResolvedW
     modulesDir: resolve(cwd, userConfig.modulesDir ?? "src/modules/app"),
     srcDir: resolve(cwd, userConfig.srcDir ?? "src"),
     generate: {
-      files: userConfig.generate?.files ?? ["module", "controller", "service", "dto", "entity"],
+      files: userConfig.generate?.files ?? ["module", "controller", "service", "dto", "entity", "test"],
     },
   };
 }

@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { registerControllerRoutes } from "../decorators/http/controller.decorator";
-import { GLOBAL_MODULE_METADATA } from "../decorators/modules/global.decorator";
+import { Reflector } from "../services/reflector.service";
 import { logger } from "../utils/logger.util";
-import { collectModuleTree } from "./module-compiler";
-import { resolveInstance } from "./injector";
+import { compileModuleTree } from "./module-compiler";
+import { createResolutionContext, resolveToken, tokenName } from "./injector";
 
 export function createModule<B extends object = Record<string, unknown>>(
 	moduleClass: any,
@@ -15,35 +15,38 @@ export function createModule<B extends object = Record<string, unknown>>(
 
 	middlewares.forEach((middleware) => router.use("*", middleware));
 
-	const controllers: any[] = [];
-	const providers: any[] = [];
-	const globalProviders: any[] = [];
-
-	collectModuleTree(moduleClass, new Set(), new Set(), controllers, providers, globalProviders);
+	const tree = compileModuleTree(moduleClass);
 
 	logger.info(
-		`Resolved ${providers.length} providers, ${controllers.length} controllers`,
+		`Resolved ${tree.providers.size} providers, ${tree.controllers.length} controllers`,
 		"ModuleFactory"
 	);
 
-	const instanceRegistry = new Map<any, any>();
-	const inProgress = new Set<any>();
+	const ctx = createResolutionContext(tree.providers);
+	ctx.registry.set(Reflector, new Reflector());
 
 	// Global providers are resolved first so they're available to all modules
-	for (const ProviderClass of globalProviders) {
-		resolveInstance(ProviderClass, instanceRegistry, inProgress);
+	for (const token of tree.globalTokens) {
+		resolveToken(token, ctx);
 	}
 
-	for (const ProviderClass of providers) {
-		resolveInstance(ProviderClass, instanceRegistry, inProgress);
-	}
-
-	for (const ControllerClass of controllers) {
+	for (const token of tree.tokens) {
 		try {
-			resolveInstance(ControllerClass, instanceRegistry, inProgress);
-			const controller = instanceRegistry.get(ControllerClass);
-			const prefix = (controller.constructor as any).prototype.prefix || "";
-			registerControllerRoutes(router, controller, prefix, instanceRegistry);
+			resolveToken(token, ctx);
+		} catch (error) {
+			logger.error(
+				`Failed to create provider "${tokenName(token)}": ${error}`,
+				"ModuleFactory"
+			);
+			throw error;
+		}
+	}
+
+	for (const ControllerClass of tree.controllers) {
+		try {
+			const controller = resolveToken(ControllerClass, ctx);
+			const prefix = ControllerClass.prototype.prefix || "";
+			registerControllerRoutes(router, controller, prefix, ctx);
 			logger.debug(
 				`Registered controller: ${ControllerClass.name} at "${prefix}"`,
 				"ModuleFactory"
@@ -57,18 +60,24 @@ export function createModule<B extends object = Record<string, unknown>>(
 		}
 	}
 
-	// Call onModuleInit on all instances that implement it
-	for (const instance of instanceRegistry.values()) {
-		if (typeof instance?.onModuleInit === "function") {
-			const result = instance.onModuleInit();
-			if (result instanceof Promise) {
-				result.catch((err) =>
-					logger.error(`onModuleInit failed for ${instance.constructor?.name}: ${err}`, "ModuleFactory")
-				);
-			}
-		}
-	}
+	runLifecycleHook(ctx.registry.values(), "onModuleInit");
+	runLifecycleHook(ctx.registry.values(), "onApplicationBootstrap");
 
 	logger.info(`Module "${moduleClass.name}" created successfully`, "ModuleFactory");
 	return router;
+}
+
+function runLifecycleHook(instances: Iterable<any>, hook: string): void {
+	const seen = new Set<any>();
+	for (const instance of instances) {
+		if (!instance || seen.has(instance)) continue;
+		seen.add(instance);
+		if (typeof instance[hook] !== "function") continue;
+		const result = instance[hook]();
+		if (result instanceof Promise) {
+			result.catch((err) =>
+				logger.error(`${hook} failed for ${instance.constructor?.name}: ${err}`, "ModuleFactory")
+			);
+		}
+	}
 }

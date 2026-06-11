@@ -1,4 +1,4 @@
-export const INTERCEPTORS_METADATA = "wilt:interceptors";
+export const INTERCEPTORS_METADATA = "ajke:interceptors";
 
 export function UseInterceptors(
 	...interceptors: (new (...args: any[]) => any)[]

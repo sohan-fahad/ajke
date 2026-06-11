@@ -13,5 +13,5 @@ export default defineConfig({
 	sourcemap: true,
 	outDir: "dist",
 	tsconfig: "tsconfig.json",
-	external: ["hono", "reflect-metadata", "tsyringe", "zod"],
+	external: ["hono", "reflect-metadata", "zod"],
 });
