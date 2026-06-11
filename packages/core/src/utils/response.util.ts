@@ -7,9 +7,8 @@ import type {
 
 export class _ResponseUtil {
 	private static instance: _ResponseUtil;
-	private logger: Console = console;
 
-	private constructor() { } // Prevent direct instantiation
+	private constructor() {} // Prevent direct instantiation
 
 	static getInstance(): _ResponseUtil {
 		if (!_ResponseUtil.instance) {

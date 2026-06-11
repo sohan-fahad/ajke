@@ -28,19 +28,19 @@ export function Inject(token?: InjectionToken | ForwardReference) {
 	) => {
 		if (propertyKey !== undefined) return;
 
-		let actualToken = token;
+		let actualToken: InjectionToken | ForwardReference | undefined = token;
 		if (actualToken === undefined || actualToken === null) {
 			const paramTypes = Reflect.getMetadata("design:paramtypes", target) || [];
 			actualToken = paramTypes[parameterIndex];
-			if (actualToken === undefined) return;
 		}
+		if (actualToken === undefined || actualToken === null) return;
 
 		const existing: Record<number, InjectionToken | ForwardReference> = {
 			...(Reflect.getOwnMetadata(INJECT_CUSTOM_TOKENS_KEY, target) ??
 				Reflect.getMetadata(INJECT_CUSTOM_TOKENS_KEY, target) ??
 				{}),
 		};
-		existing[parameterIndex] = actualToken!;
+		existing[parameterIndex] = actualToken;
 		Reflect.defineMetadata(INJECT_CUSTOM_TOKENS_KEY, existing, target);
 	};
 }

@@ -35,14 +35,14 @@ function packageJsonTemplate(name: string) {
       },
       dependencies: {
         hono: "^4.12.0",
-        "@ajke/core": "^0.1.0",
+        "@ajke/core": "^0.2.0",
         "reflect-metadata": "^0.2.2",
         zod: "^4.0.0",
         "drizzle-orm": "^0.45.0",
         ulid: "^3.0.0",
       },
       devDependencies: {
-        "@ajke/cli": "^0.1.0",
+        "@ajke/cli": "^0.2.0",
         "@cloudflare/vite-plugin": "^1.36.0",
         "@cloudflare/workers-types": "^4.0.0",
         "@cloudflare/vitest-pool-workers": "^0.16.0",
@@ -347,7 +347,7 @@ function migrationTemplate() {
 `;
 }
 
-function migrationMetaTemplate(name: string) {
+function migrationMetaTemplate() {
   return JSON.stringify(
     {
       version: "5",
@@ -429,7 +429,7 @@ export function runNew(args: string[]): void {
 
   // Migrations
   write(join(projectDir, "migrations/0000_initial.sql"), migrationTemplate());
-  write(join(projectDir, "migrations/meta/_journal.json"), migrationMetaTemplate(name));
+  write(join(projectDir, "migrations/meta/_journal.json"), migrationMetaTemplate());
 
   // Try to install dependencies
   console.log("\n  Installing dependencies...\n");
