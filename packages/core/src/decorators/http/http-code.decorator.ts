@@ -1,4 +1,4 @@
-export const HTTP_CODE_METADATA = "wilt:http-code";
+export const HTTP_CODE_METADATA = "ajke:http-code";
 
 export function HttpCode(statusCode: number): MethodDecorator {
 	return (_target, _key, descriptor: PropertyDescriptor) => {

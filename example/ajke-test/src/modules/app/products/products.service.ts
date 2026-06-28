@@ -63,12 +63,12 @@ export class ProductsService {
     return { ...product, images, stats: stats[0] || null, variants: productVariants };
   }
 
-  async create(payload: typeof products.$inferInsert, c: Context) {
+  async create(payload: Omit<typeof products.$inferInsert, "code"> & { code?: string }, c: Context) {
     const db = getDb(c);
     const productId = ulid();
 
     await db.batch([
-      db.insert(products).values({ id: productId, ...payload }) as unknown as BatchItem,
+      db.insert(products).values({ id: productId, ...payload, code: payload.code ?? ulid() }) as unknown as BatchItem,
       db.insert(productStats).values({ productId, organizationId: payload.organizationId }) as unknown as BatchItem,
     ]);
 
@@ -133,9 +133,12 @@ export class ProductsService {
     return db.select().from(variants).orderBy(variants.orderPriority);
   }
 
-  async createVariant(payload: typeof variants.$inferInsert, c: Context) {
+  async createVariant(payload: Omit<typeof variants.$inferInsert, "slug"> & { slug?: string }, c: Context) {
     const db = getDb(c);
-    const [v] = await db.insert(variants).values(payload).returning();
+    const [v] = await db
+      .insert(variants)
+      .values({ ...payload, slug: payload.slug ?? this.slugify(String(payload.title)) })
+      .returning();
     return v!;
   }
 
@@ -148,9 +151,20 @@ export class ProductsService {
       .orderBy(variantOptions.orderPriority);
   }
 
-  async createVariantOption(payload: typeof variantOptions.$inferInsert, c: Context) {
+  async createVariantOption(
+    payload: Omit<typeof variantOptions.$inferInsert, "slug"> & { slug?: string; variant?: string },
+    c: Context,
+  ) {
     const db = getDb(c);
-    const [vo] = await db.insert(variantOptions).values(payload).returning();
+    const { variant, ...rest } = payload;
+    const [vo] = await db
+      .insert(variantOptions)
+      .values({
+        ...rest,
+        slug: rest.slug ?? this.slugify(String(rest.title)),
+        variantId: rest.variantId ?? variant,
+      })
+      .returning();
     return vo!;
   }
 
@@ -199,5 +213,14 @@ export class ProductsService {
       .returning();
     if (!updated) throw new NotFoundException("Product zone mapping not found");
     return updated;
+  }
+
+  private slugify(text: string): string {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 }

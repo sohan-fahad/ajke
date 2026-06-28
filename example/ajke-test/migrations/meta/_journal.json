@@ -15,6 +15,13 @@
       "when": 1778746052503,
       "tag": "0001_right_jazinda",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778746052504,
+      "tag": "0002_workspaces",
+      "breakpoints": true
     }
   ]
 }

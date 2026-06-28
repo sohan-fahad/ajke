@@ -1,4 +1,4 @@
-export const GUARDS_METADATA = "wilt:guards";
+export const GUARDS_METADATA = "ajke:guards";
 
 export function UseGuards(...guards: (new (...args: any[]) => any)[]): MethodDecorator & ClassDecorator {
 	return (target: any, key?: any, descriptor?: PropertyDescriptor): any => {

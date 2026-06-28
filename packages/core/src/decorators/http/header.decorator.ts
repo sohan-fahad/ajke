@@ -1,4 +1,4 @@
-export const HEADER_METADATA = "wilt:response-headers";
+export const HEADER_METADATA = "ajke:response-headers";
 
 export function Header(name: string, value: string): MethodDecorator {
 	return (_target, _key, descriptor: PropertyDescriptor) => {

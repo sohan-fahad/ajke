@@ -1,4 +1,4 @@
-export const REDIRECT_METADATA = "wilt:redirect";
+export const REDIRECT_METADATA = "ajke:redirect";
 
 export interface RedirectMetadata {
 	url: string;

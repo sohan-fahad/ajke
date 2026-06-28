@@ -1,4 +1,4 @@
-import type { Context } from "hono";
+import { VALIDATION_RULES_METADATA } from "../constants";
 
 export interface ValidationRule {
 	field: string;
@@ -10,70 +10,13 @@ export interface ValidationRule {
 	custom?: (value: any) => boolean;
 }
 
-export function Validate(rules: ValidationRule[]) {
-	return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-		const originalMethod = descriptor.value;
-
-		descriptor.value = async function (...args: any[]) {
-			const c: Context = args.find((a: any) => a != null && typeof a.json === "function" && a.req != null) ?? args[0];
-			const body = await c.req.json().catch(() => ({}));
-			const errors: string[] = [];
-
-			for (const rule of rules) {
-				const value = body[rule.field];
-
-				if (rule.required && (value === undefined || value === null || value === "")) {
-					errors.push(`${rule.field} is required`);
-					continue;
-				}
-
-				if (value === undefined || value === null) {
-					continue;
-				}
-
-				if (rule.type) {
-					const actualType = Array.isArray(value) ? "array" : typeof value;
-					if (actualType !== rule.type) {
-						errors.push(`${rule.field} must be of type ${rule.type}`);
-					}
-				}
-
-				if (rule.type === "string" || typeof value === "string") {
-					if (rule.minLength && value.length < rule.minLength) {
-						errors.push(`${rule.field} must be at least ${rule.minLength} characters long`);
-					}
-					if (rule.maxLength && value.length > rule.maxLength) {
-						errors.push(`${rule.field} must be at most ${rule.maxLength} characters long`);
-					}
-				}
-
-				if (rule.pattern && typeof value === "string" && !rule.pattern.test(value)) {
-					errors.push(`${rule.field} format is invalid`);
-				}
-
-				if (rule.custom && !rule.custom(value)) {
-					errors.push(`${rule.field} validation failed`);
-				}
-			}
-
-			if (errors.length > 0) {
-				return c.json(
-					{
-						success: false,
-						error: {
-							code: "VALIDATION_ERROR",
-							message: "Validation failed",
-							details: errors,
-						},
-						timestamp: new Date().toISOString(),
-					},
-					400,
-				);
-			}
-
-			return originalMethod.call(this, ...args);
-		};
-
+/**
+ * Validates the request body against simple field rules before the handler
+ * runs. Prefer `@ZodValidate` for anything non-trivial.
+ */
+export function Validate(rules: ValidationRule[]): MethodDecorator {
+	return (_target, _key, descriptor: PropertyDescriptor) => {
+		Reflect.defineMetadata(VALIDATION_RULES_METADATA, rules, descriptor.value);
 		return descriptor;
 	};
 }

@@ -1,6 +1,6 @@
 import { writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
-import { APP_MODULES_DIR, APP_MODULE_FILE, SCHEMA_FILE, wiltImportPath, ensureDir } from "../utils/paths.js";
+import { APP_MODULES_DIR, APP_MODULE_FILE, SCHEMA_FILE, coreImportPath, ensureDir } from "../utils/paths.js";
 
 function toPascalCase(name: string): string {
   return name
@@ -25,11 +25,11 @@ function pluralize(name: string): string {
   return name.endsWith("s") ? name : name + "s";
 }
 
-function moduleTemplate(name: string, wiltPath: string): string {
+function moduleTemplate(name: string, corePath: string): string {
   const pascal = toPascalCase(name);
   const kebab = toKebabCase(name);
 
-  return `import { Module } from "${wiltPath}";
+  return `import { Module } from "${corePath}";
 import { ${pascal}Controller } from "./${kebab}.controller";
 import { ${pascal}Service } from "./${kebab}.service";
 
@@ -63,13 +63,13 @@ export type New${pascal} = typeof ${entityVar}.$inferInsert;
 `;
 }
 
-function controllerTemplate(name: string, wiltPath: string): string {
+function controllerTemplate(name: string, corePath: string): string {
   const pascal = toPascalCase(name);
   const camel = toCamelCase(name);
   const kebab = toKebabCase(name);
   return `import type { Context } from "hono";
-import { Controller, Get, Inject } from "${wiltPath}";
-import { ResponseUtil } from "${wiltPath}";
+import { Controller, Get, Inject } from "${corePath}";
+import { ResponseUtil } from "${corePath}";
 import { ${pascal}Service } from "./${kebab}.service";
 
 @Controller("/${kebab}")
@@ -85,18 +85,12 @@ export class ${pascal}Controller {
 `;
 }
 
-function serviceTemplate(name: string, wiltPath: string): string {
+function serviceTemplate(name: string, corePath: string): string {
   const pascal = toPascalCase(name);
-  return `import { Injectable } from "${wiltPath}";
-import { createDatabase } from "../../../database/connection";
+  return `import { Injectable } from "${corePath}";
 
 @Injectable()
 export class ${pascal}Service {
-
-  private getDatabase(env: CloudflareBindings) {
-    return createDatabase(env.DB);
-  }
-
   async findAll() {
     return [];
   }
@@ -234,9 +228,9 @@ export interface GenerateModuleOptions {
   dir?: string;
   /** Which files to generate — defaults to config.generate.files */
   files?: GeneratableFile[];
-  /** Base directory for generated modules (from wilt.config.ts) */
+  /** Base directory for generated modules (from ajke.config.ts) */
   modulesDir?: string;
-  /** Default file list (from wilt.config.ts) */
+  /** Default file list (from ajke.config.ts) */
   defaultFiles?: GeneratableFile[];
   /** Skip generating the test file even if it is in defaultFiles */
   noTest?: boolean;
@@ -259,13 +253,13 @@ export function generateModule(name: string, options: GenerateModuleOptions = {}
 
   ensureDir(moduleDir);
 
-  const wiltPath = wiltImportPath();
+  const corePath = coreImportPath();
   const hasEntity = filesToGen.includes("entity");
 
   const fileMap: Record<string, string> = {
-    module: moduleTemplate(name, wiltPath),
-    controller: controllerTemplate(name, wiltPath),
-    service: serviceTemplate(name, wiltPath),
+    module: moduleTemplate(name, corePath),
+    controller: controllerTemplate(name, corePath),
+    service: serviceTemplate(name, corePath),
     dto: dtoTemplate(name),
     entity: entityTemplate(name),
     test: testTemplate(name),
@@ -300,7 +294,7 @@ export function generateService(name: string, dir?: string, modulesDir?: string)
   const kebab = toKebabCase(name);
   const basedir = modulesDir ?? APP_MODULES_DIR;
   const targetDir = dir ?? join(basedir, kebab);
-  const wiltPath = wiltImportPath();
+  const corePath = coreImportPath();
   const filePath = join(targetDir, `${kebab}.service.ts`);
 
   if (existsSync(filePath)) {
@@ -309,7 +303,7 @@ export function generateService(name: string, dir?: string, modulesDir?: string)
   }
 
   ensureDir(targetDir);
-  writeFileSync(filePath, serviceTemplate(name, wiltPath), "utf-8");
+  writeFileSync(filePath, serviceTemplate(name, corePath), "utf-8");
   console.log(`  ✔ Created ${filePath.replace(process.cwd() + "/", "")}`);
 }
 
@@ -317,7 +311,7 @@ export function generateController(name: string, dir?: string, modulesDir?: stri
   const kebab = toKebabCase(name);
   const basedir = modulesDir ?? APP_MODULES_DIR;
   const targetDir = dir ?? join(basedir, kebab);
-  const wiltPath = wiltImportPath();
+  const corePath = coreImportPath();
   const filePath = join(targetDir, `${kebab}.controller.ts`);
 
   if (existsSync(filePath)) {
@@ -326,6 +320,6 @@ export function generateController(name: string, dir?: string, modulesDir?: stri
   }
 
   ensureDir(targetDir);
-  writeFileSync(filePath, controllerTemplate(name, wiltPath), "utf-8");
+  writeFileSync(filePath, controllerTemplate(name, corePath), "utf-8");
   console.log(`  ✔ Created ${filePath.replace(process.cwd() + "/", "")}`);
 }

@@ -1,16 +1,23 @@
 import { Injectable, NotFoundException, ConflictException } from "@ajke/core";
 import type { Context } from "hono";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, like } from "drizzle-orm";
 import { getDb } from "@app/database/connection";
 import { roles, permissions, permissionTypes, rolePermissions } from "./acl.entity";
 
 @Injectable()
 export class AclService {
 
-  async findAllRoles(query: { organizationId?: string; search?: string }, c: Context) {
+  async findAllRoles(
+    query: { organizationId?: string; workspaceId?: string; searchTerm?: string; page?: number; limit?: number },
+    c: Context,
+  ) {
     const db = getDb(c);
     let q = db.select().from(roles).$dynamic();
-    if (query.organizationId) q = q.where(eq(roles.organizationId, query.organizationId));
+    const conds = [];
+    if (query.organizationId) conds.push(eq(roles.organizationId, query.organizationId));
+    if (query.workspaceId) conds.push(eq(roles.workspaceId, query.workspaceId));
+    if (query.searchTerm) conds.push(like(roles.title, `%${query.searchTerm}%`));
+    if (conds.length) q = q.where(and(...conds));
     return q.orderBy(desc(roles.createdAt));
   }
 

@@ -5,7 +5,7 @@ A lightweight, NestJS-inspired framework for building modular APIs on Cloudflare
 ## Installation
 
 ```bash
-npm install @ajke/core hono reflect-metadata tsyringe zod
+npm install @ajke/core hono reflect-metadata zod
 ```
 
 Your `tsconfig.json` must have:
@@ -19,6 +19,8 @@ Your `tsconfig.json` must have:
 }
 ```
 
+> **Note:** Vite/esbuild never emit `design:paramtypes`, so always use explicit `@Inject(Token)` on constructor parameters. It works in every build setup.
+
 ---
 
 ## Quick Start
@@ -26,13 +28,7 @@ Your `tsconfig.json` must have:
 ```typescript
 // src/index.ts
 import "reflect-metadata";
-import { createModule } from "@ajke/core";
-import { requestLogger } from "@ajke/core/middleware";
-import { AppModule } from "./app.module";
-
-const app = createModule(AppModule, {
-  middlewares: [requestLogger],
-});
+import { app } from "./app.module";
 
 export default {
   fetch(request: Request, env: CloudflareBindings, ctx: ExecutionContext) {
@@ -44,10 +40,15 @@ export default {
 ```typescript
 // src/app.module.ts
 import { Module, createModule } from "@ajke/core";
+import { errorHandler, requestLogger } from "@ajke/core/middleware";
 import { HelloModule } from "./modules/hello/hello.module";
 
 @Module({ imports: [HelloModule] })
 export class AppModule {}
+
+export const app = createModule(AppModule, {
+  middlewares: [errorHandler, requestLogger],
+});
 ```
 
 ```typescript
@@ -67,11 +68,11 @@ import { HelloService } from "./hello.service";
 
 @Controller("/hello")
 export class HelloController {
-  constructor(@Inject(HelloService) private helloService: HelloService) {}
+  constructor(@Inject(HelloService) private readonly helloService: HelloService) {}
 
   @Get()
   greet() {
-    return { message: this.helloService.greet() };
+    return { message: this.helloService.greet() }; // auto-serialized with c.json()
   }
 }
 ```
@@ -90,268 +91,191 @@ export class HelloService {
 
 ---
 
-## Core Concepts
+## Dependency Injection
 
-| Concept | Decorator / API | Purpose |
-|---|---|---|
-| Module | `@Module` | Group controllers and providers |
-| Global Module | `@Global` | Make a module's providers available everywhere |
-| Controller | `@Controller` | Handle HTTP routes |
-| Provider | `@Injectable` | Injectable service |
-| Custom injection | `@Inject` | Explicit token injection |
-| Optional dep | `@Optional` | Inject `undefined` if provider not registered |
-| Guards | `@UseGuards` | Authorization — block requests early |
-| Interceptors | `@UseInterceptors` | Transform requests/responses |
-| Exception filters | `@UseFilters` / `@Catch` | Handle specific thrown exceptions |
-| Metadata | `@SetMetadata` + `Reflector` | Attach and read custom metadata |
-| Lifecycle hooks | `OnModuleInit` | Run code after DI wiring |
+Providers are singletons resolved from the module tree. Inject them by class, string, or symbol token:
+
+```typescript
+@Module({
+  providers: [
+    UserService,                                              // class shorthand
+    { provide: "API_URL", useValue: "https://api.example.com" },
+    { provide: "HTTP", useClass: FetchHttpClient },
+    { provide: "SIGNER", useFactory: (url: string) => createSigner(url), inject: ["API_URL"] },
+    { provide: "HTTP_ALIAS", useExisting: "HTTP" },
+  ],
+})
+export class AppModule {}
+```
+
+```typescript
+@Injectable()
+export class UserService {
+  constructor(
+    @Inject("API_URL") private readonly apiUrl: string,
+    @Optional() @Inject("CACHE") private readonly cache?: KVCache,
+  ) {}
+}
+```
+
+### Circular dependencies
+
+Use `forwardRef` on **both** sides:
+
+```typescript
+@Injectable()
+export class OrderService {
+  constructor(@Inject(forwardRef(() => PaymentService)) private payments: PaymentService) {}
+}
+
+@Injectable()
+export class PaymentService {
+  constructor(@Inject(forwardRef(() => OrderService)) private orders: OrderService) {}
+}
+```
+
+The second side receives a lazy proxy that resolves once the real instance exists — don't call methods on it inside the constructor.
+
+Circular **module** imports work the same way: `imports: [forwardRef(() => OtherModule)]` in both modules.
+
+### Global and dynamic modules
+
+```typescript
+@Global()
+@Module({ providers: [ConfigService] })
+export class ConfigModule {}
+```
+
+```typescript
+@Module({})
+export class CacheModule {
+  static forRoot(ttl: number): DynamicModule {
+    return {
+      module: CacheModule,
+      providers: [{ provide: "CACHE_TTL", useValue: ttl }, CacheService],
+      global: true,
+    };
+  }
+}
+
+@Module({ imports: [CacheModule.forRoot(60)] })
+export class AppModule {}
+```
 
 ---
 
-## HTTP Decorators
+## Request pipeline
 
-### Route mapping
-
-```typescript
-@Get(path?)   @Post(path?)   @Put(path?)   @Delete(path?)   @Patch(path?)
+```
+middleware → guards → interceptors (pre) → validation pipes → handler → interceptors (post) → exception filters (on throw)
 ```
 
 ### Parameter decorators
 
-Extract values directly as handler arguments — no manual `c.req` parsing needed.
-
 ```typescript
-@Body(property?)    // entire body, or body[property]
-@Param(name?)       // route param :name, or all params as object
-@Query(name?)       // query string ?name=, or all queries as object
-@Headers(name?)     // single header, or all headers as object
-@Ip()               // client IP (CF-Connecting-IP / X-Forwarded-For)
-@Req()              // full Hono Context — escape hatch
+@Post("/:id")
+update(
+  @Param("id") id: string,
+  @Body() body: UpdateDto,
+  @Query("force") force: string | undefined,
+  @Headers("authorization") auth: string | undefined,
+  @Ip() ip: string,
+  c: Context, // any undecorated slot receives the raw Hono context
+) { ... }
 ```
 
-### Response decorators
+Plain-object returns are auto-serialized via `c.json()`. POST defaults to **201**; override with `@HttpCode(...)`. Handlers without parameter decorators receive the raw Hono `Context` as their first argument.
+
+### Validation
 
 ```typescript
-@HttpCode(201)                         // override default 200/204
-@Header('Cache-Control', 'no-store')   // set a response header
-@Redirect('/new-url', 301)             // redirect response
-```
-
----
-
-## Validation
-
-```typescript
-import { ZodValidate, QueryValidate } from "@ajke/core";
-import { z } from "zod";
-
-const CreateUserDto = z.object({ name: z.string(), email: z.string().email() });
+const CreateUserDto = z.object({ email: z.string().email(), role: z.string().default("user") });
 
 @Post()
-@ZodValidate(CreateUserDto)       // validates body; result in c.get('validatedData')
-async create(@Body() body: unknown) { ... }
+@ZodValidate(CreateUserDto)
+create(@Body() body: z.infer<typeof CreateUserDto>, c: Context) {
+  // body is the validated AND transformed value (defaults applied)
+  // also available as c.get("validatedData")
+}
 
 @Get()
-@QueryValidate(SearchDto)         // validates query params; result in c.get('validatedQuery')
-async search() { ... }
+@QueryValidate(z.object({ page: z.coerce.number().default(1) }))
+list(c: Context) {
+  const { page } = c.get("validatedQuery");
+}
 ```
 
----
+Invalid input short-circuits with a `400` `VALIDATION_ERROR` JSON response.
 
-## Guards
+### Guards
 
 ```typescript
-import { Injectable, CanActivate, ExecutionContext, UseGuards } from "@ajke/core";
-
 @Injectable()
 export class AuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    const c = context.switchToHttp().getRequest();
-    return !!c.req.header("authorization");
+  constructor(@Inject(Reflector) private reflector: Reflector) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.get<boolean>("isPublic", context.getHandler());
+    if (isPublic) return true;
+    const c = context.switchToHttp().getRequest<Context>();
+    return verify(c.req.header("authorization"));
   }
 }
 
 @Controller("/users")
 @UseGuards(AuthGuard)
-export class UsersController { ... }
+export class UserController { ... }
 ```
 
-A guard returning `false` causes Ajke to throw `ForbiddenException` automatically.
+A guard returning `false` results in a `ForbiddenException` (403); throw your own exception for other statuses. Guards are resolved through DI — register them as providers to inject dependencies.
 
----
-
-## Interceptors
+### Interceptors
 
 ```typescript
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, UseInterceptors } from "@ajke/core";
-
 @Injectable()
-export class LoggingInterceptor implements NestInterceptor {
+export class TimingInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler) {
     const start = Date.now();
     const result = await next.handle();
-    console.log(`Took ${Date.now() - start}ms`);
+    console.log(`${context.getHandler().name} took ${Date.now() - start}ms`);
     return result;
   }
 }
-
-@Get()
-@UseInterceptors(LoggingInterceptor)
-async getAll() { ... }
 ```
 
----
-
-## Exception Filters
+### Exception filters
 
 ```typescript
-import { Catch, ExceptionFilter, ArgumentsHost, HttpException, UseFilters } from "@ajke/core";
-import type { Context } from "hono";
-
 @Catch(HttpException)
-export class HttpExceptionFilter implements ExceptionFilter<HttpException> {
+export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost): Response {
     const c = host.switchToHttp().getRequest<Context>();
-    return c.json({ statusCode: exception.getStatus(), message: exception.getResponse() }, exception.getStatus() as any);
-  }
-}
-
-@Controller("/users")
-@UseFilters(HttpExceptionFilter)
-export class UsersController { ... }
-```
-
----
-
-## Built-in Exceptions
-
-Throw these anywhere — the built-in `errorHandler` middleware catches them automatically.
-
-```typescript
-throw new BadRequestException("Invalid input");
-throw new UnauthorizedException();
-throw new ForbiddenException("Insufficient permissions");
-throw new NotFoundException("User not found");
-throw new ConflictException("Email already exists");
-throw new UnprocessableEntityException({ message: "Validation failed", errors: [] });
-throw new TooManyRequestsException();
-throw new InternalServerErrorException();
-```
-
-Extend `HttpException` for custom errors:
-
-```typescript
-export class PaymentRequiredException extends HttpException {
-  constructor() { super("Payment required", 402); }
-}
-```
-
----
-
-## SetMetadata + Reflector
-
-```typescript
-// Define a helper decorator
-export const Roles = (...roles: string[]) => SetMetadata("roles", roles);
-
-// Use on a route
-@Roles("admin")
-@Get()
-async adminOnly() { ... }
-
-// Read in a guard
-@Injectable()
-export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-
-  canActivate(context: ExecutionContext): boolean {
-    const required = this.reflector.getAllAndOverride<string[]>("roles", [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (!required) return true;
-    // check user roles...
-    return true;
+    return c.json({ error: exception.getResponse() }, exception.getStatus() as any);
   }
 }
 ```
 
 ---
 
-## Lifecycle Hooks
+## Exceptions
+
+`HttpException` plus subclasses: `BadRequest`, `Unauthorized`, `Forbidden`, `NotFound`, `MethodNotAllowed`, `NotAcceptable`, `RequestTimeout`, `Conflict`, `Gone`, `PreconditionFailed`, `PayloadTooLarge`, `UnsupportedMediaType`, `UnprocessableEntity`, `TooManyRequests`, `InternalServerError`, `NotImplemented`, `BadGateway`, `ServiceUnavailable`, `GatewayTimeout` (+`Exception` suffix).
+
+The `errorHandler` middleware converts them (and Zod errors) into consistent JSON error responses.
+
+## Lifecycle hooks
+
+`onModuleInit` and `onApplicationBootstrap` are invoked on all instantiated providers when `createModule` finishes wiring.
+
+## Typed bindings
 
 ```typescript
-import { Injectable, OnModuleInit } from "@ajke/core";
+// src/context.ts
+import type { AppContext } from "@ajke/core";
 
-@Injectable()
-export class DatabaseService implements OnModuleInit {
-  async onModuleInit() {
-    await this.connect();
-  }
+declare module "@ajke/core" {
+  interface AjkeBindings extends CloudflareBindings {}
 }
+
+export type Ctx = AppContext; // Context with your D1/KV/R2 bindings typed
 ```
-
----
-
-## Dependency Injection
-
-```typescript
-// Type-based (automatic)
-constructor(private userService: UserService) {}
-
-// Explicit token
-constructor(@Inject(UserService) private userService: UserService) {}
-
-// Circular references
-constructor(@Inject(forwardRef(() => ServiceB)) private b: ServiceB) {}
-
-// Optional
-constructor(@Optional() private cache?: CacheService) {}
-```
-
----
-
-## Auto-Serialization
-
-When parameter decorators (`@Body`, `@Param`, etc.) are used, handlers may return plain values:
-
-| Return value | Response |
-|---|---|
-| Plain object / array | `c.json(result, 200)` |
-| `undefined` / `null` | `204 No Content` |
-| `Response` object | Returned as-is |
-
-Without parameter decorators, the handler receives the raw Hono `Context` as the first argument (backward-compatible).
-
----
-
-## Middleware
-
-```typescript
-import { requestLogger, errorHandler } from "@ajke/core/middleware";
-
-const app = createModule(AppModule, {
-  middlewares: [errorHandler, requestLogger],
-});
-```
-
----
-
-## Config (`ajke.config.ts`)
-
-```typescript
-import { defineConfig } from "@ajke/core/config";
-
-export default defineConfig({
-  modulesDir: "src/modules/app",
-  generate: {
-    files: ["module", "controller", "service", "dto", "entity", "test"],
-  },
-});
-```
-
----
-
-## License
-
-MIT

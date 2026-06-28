@@ -17,6 +17,7 @@ afterEach(async () => {
   await env.DB.prepare("DELETE FROM deliverymen").run();
   await env.DB.prepare("DELETE FROM user_roles").run();
   await env.DB.prepare("DELETE FROM users").run();
+  await env.DB.prepare("DELETE FROM roles").run();
 });
 
 describe("DeliveryManService", () => {

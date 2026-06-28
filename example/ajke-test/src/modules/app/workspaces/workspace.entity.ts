@@ -1,14 +1,12 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { ulid } from "ulid";
-import { organizations } from "../organizations/organization.entity";
 
-export const authStats = sqliteTable("auth_stats", {
+export const workspaces = sqliteTable("workspaces", {
   id: text("id").primaryKey().$defaultFn(() => ulid()),
-  phoneNumber: text("phone_number").unique(),
-  otp: integer("otp"),
-  otpExpiryAt: text("otp_expiry_at"),
+  title: text("title").notNull(),
+  slug: text("slug").unique().notNull(),
+  description: text("description"),
   isActive: integer("is_active", { mode: "boolean" }).default(true),
-  organizationId: text("organization_id").references(() => organizations.id),
   createdBy: text("created_by"),
   updatedBy: text("updated_by"),
   deletedBy: text("deleted_by"),
@@ -17,5 +15,5 @@ export const authStats = sqliteTable("auth_stats", {
   deletedAt: text("deleted_at"),
 });
 
-export type AuthStat = typeof authStats.$inferSelect;
-export type NewAuthStat = typeof authStats.$inferInsert;
+export type Workspace = typeof workspaces.$inferSelect;
+export type NewWorkspace = typeof workspaces.$inferInsert;

@@ -1,12 +1,16 @@
+import type { RouteMetadata } from "../../interfaces/modules/module.interface";
+
 function createMethodDecorator(
 	method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH"
 ) {
 	return (path: string = "") =>
 		(target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
-			if (!target.constructor.prototype.routes) {
-				target.constructor.prototype.routes = [];
+			const proto = target.constructor.prototype;
+			// Clone inherited routes so subclasses don't mutate their parent's array
+			if (!Object.prototype.hasOwnProperty.call(proto, "routes")) {
+				proto.routes = [...(proto.routes ?? [])];
 			}
-			target.constructor.prototype.routes.push({
+			(proto.routes as RouteMetadata[]).push({
 				method,
 				path,
 				handler: propertyKey,

@@ -1,8 +1,8 @@
 {
   "name": "@ajke/cli",
-  "version": "0.1.15",
+  "version": "0.2.0",
   "type": "module",
-  "description": "CLI for the Ajke framework — scaffold Cloudflare Workers projects",
+  "description": "CLI for the Ajke framework \u2014 scaffold Cloudflare Workers projects",
   "keywords": [
     "cloudflare",
     "workers",

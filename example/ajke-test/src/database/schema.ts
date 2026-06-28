@@ -14,9 +14,11 @@ import { productDiscounts, productImages, productPriceCircularItems, productPric
 import { transactions } from "@app/modules/app/transactions/transactions.entity";
 import { users, userRoles, userConfigs } from "@app/modules/app/user/user.entity";
 import { organizations } from "@app/modules/app/organizations/organization.entity";
+import { workspaces } from "@app/modules/app/workspaces/workspace.entity";
 
 export const schema = {
     organizations,
+    workspaces,
     roles,
     permissionTypes,
     permissions,
